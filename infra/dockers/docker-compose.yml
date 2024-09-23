@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres # Use the desired version of PostgreSQL
+    container_name: postgres-db
+    restart: always
+    environment:
+      POSTGRES_USER: application # The default username
+      POSTGRES_PASSWORD: password # The default password
+      POSTGRES_DB: vampire_project # The default database name
+    ports:
+      - "5432:5432" # Map port 5432 on host to port 5432 on the container
+    volumes:
+      - postgres-data:/var/lib/postgresql/data # Persistent storage for database data
+
+volumes:
+  postgres-data:
