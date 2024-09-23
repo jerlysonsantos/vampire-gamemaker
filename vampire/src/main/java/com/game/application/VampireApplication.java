@@ -1,6 +1,7 @@
-package com.game.main;
+package com.game.application;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+
 import org.springframework.boot.SpringApplication;
 
 @SpringBootApplication
