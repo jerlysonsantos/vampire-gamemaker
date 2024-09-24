@@ -93,39 +93,6 @@ public class PlayerModel {
     return this.id;
   }
 
-  public Player toEntity() {
-    Player player = new Player();
-    player.setId(this.id);
-    player.setUsername(this.username);
-    player.setPassword(this.password);
-    player.setCreatedAt(this.created_at);
-    player.setUpdatedAt(this.updated_at);
-
-    return player;
-
-  }
-
-  public PlayerModel toModel(Player player) {
-    PlayerModel playerModel = new PlayerModel();
-    playerModel.setId(player.getId());
-    playerModel.setUsername(player.getUsername());
-    playerModel.setPassword(player.getPassword());
-    playerModel.setCreatedAt(player.getCreatedAt());
-    playerModel.setUpdatedAt(player.getUpdatedAt());
-
-    return playerModel;
-  }
-
-  public List<Player> toEntityList(List<PlayerModel> playerModelList) {
-    List<Player> playerList = new ArrayList<Player>();
-
-    for (PlayerModel playerModel : playerModelList) {
-      playerList.add(playerModel.toEntity());
-    }
-
-    return playerList;
-  }
-
   public String toString() {
     return "Player{id=" + id + ", username=" + username + ", created_at=" + created_at
         + ", updated_at=" + updated_at + "}";
