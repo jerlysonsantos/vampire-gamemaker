@@ -5,7 +5,7 @@ import com.game.types.enums.Clan;
 import java.util.Date;
 
 public class Character {
-    private int id;
+    private Long id;
     private String name;
     private String chronicle;
     private String nature;
@@ -24,7 +24,7 @@ public class Character {
     public Character() {
     }
 
-    public Character(int id, String name, String chronicle, String nature, String demeanor, Clan clan, int generation,
+    public Character(Long id, String name, String chronicle, String nature, String demeanor, Clan clan, int generation,
             String sire, int experience, int playerId, String websocketId, Date createdAt, Date updatedAt) {
         this.id = id;
         this.name = name;
@@ -45,7 +45,59 @@ public class Character {
         this.player = player;
     }
 
-    public int getId() {
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setChronicle(String chronicle) {
+        this.chronicle = chronicle;
+    }
+
+    public void setNature(String nature) {
+        this.nature = nature;
+    }
+
+    public void setDemeanor(String demeanor) {
+        this.demeanor = demeanor;
+    }
+
+    public void setClan(Clan clan) {
+        this.clan = clan;
+    }
+
+    public void setGeneration(int generation) {
+        this.generation = generation;
+    }
+
+    public void setSire(String sire) {
+        this.sire = sire;
+    }
+
+    public void setExperience(int experience) {
+        this.experience = experience;
+    }
+
+    public void setPlayerId(int playerId) {
+        this.playerId = playerId;
+    }
+
+    public void setWebsocketId(String websocketId) {
+        this.websocketId = websocketId;
+    }
+
+    public void setCreatedAt(Date createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setUpdatedAt(Date updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public Long getId() {
         return this.id;
     }
 
