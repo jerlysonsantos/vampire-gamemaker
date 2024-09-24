@@ -8,6 +8,7 @@ import com.game.core.domain.Player;
 import com.game.core.repositories.IPlayerRepository;
 import com.game.infra.data.datasources.JpaPlayerRepository;
 import com.game.infra.data.models.PlayerModel;
+import com.game.infra.mappers.PlayerMapper;
 
 @Repository
 public class PlayerRepository implements IPlayerRepository {
@@ -15,44 +16,36 @@ public class PlayerRepository implements IPlayerRepository {
     @Autowired
     private JpaPlayerRepository jpaPlayerRepository;
 
-    @Override
     public Player save(Player player) {
-        PlayerModel playerModel = new PlayerModel();
+        PlayerModel playerModel = this.jpaPlayerRepository.save(PlayerMapper.toModel(player));
 
-        return this.jpaPlayerRepository.save(playerModel.toModel(player)).toEntity();
+        return PlayerMapper.toEntity(playerModel);
     }
 
-    @Override
     public Player findById(Long id) {
-        return this.jpaPlayerRepository.findById(id).get().toEntity();
+        PlayerModel player = this.jpaPlayerRepository.findById(id).get();
+
+        return PlayerMapper.toEntity(player);
     }
 
-    @Override
     public void delete(Player player) {
         PlayerModel playerModel = new PlayerModel(player.getId(), player.getUsername(), player.getPassword());
 
         this.jpaPlayerRepository.delete(playerModel);
     }
 
-    @Override
     public Player update(Player player) {
-        PlayerModel playerModel = new PlayerModel(player.getId(), player.getUsername(), player.getPassword());
+        PlayerModel playerModel = this.jpaPlayerRepository.save(PlayerMapper.toModel(player));
 
-        return this.jpaPlayerRepository.save(playerModel).toEntity();
+        return PlayerMapper.toEntity(playerModel);
     }
 
-    @Override
     public List<Player> findAll() {
-        PlayerModel playerModel = new PlayerModel();
-
-        return playerModel.toEntityList(this.jpaPlayerRepository.findAll());
+        return PlayerMapper.toEntityList(this.jpaPlayerRepository.findAll());
     }
 
-    @Override
     public List<Player> findBySocketId(String webSocketId) {
-        PlayerModel playerModel = new PlayerModel();
-
-        return playerModel.toEntityList(this.jpaPlayerRepository.findByWebSocketId(webSocketId));
+        return PlayerMapper.toEntityList(this.jpaPlayerRepository.findByWebSocketId(webSocketId));
     }
 
 }
