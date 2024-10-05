@@ -14,7 +14,7 @@ public class RegisterPlayerService implements RegisterPlayerUseCase {
   private IPlayerRepository playerRepository;
 
   @Override
-  public void execute(Player player) {
-    this.playerRepository.save(player);
+  public Player execute(Player player) {
+    return this.playerRepository.save(player);
   }
 }
