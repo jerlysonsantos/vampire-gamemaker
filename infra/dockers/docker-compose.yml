@@ -1,18 +1,22 @@
 version: "3.8"
 
 services:
-  postgres:
-    image: postgres # Use the desired version of PostgreSQL
-    container_name: postgres-db
-    restart: always
+  oracle-db:
+    image: container-registry.oracle.com/database/enterprise
+    container_name: oracle-db
     environment:
-      POSTGRES_USER: application # The default username
-      POSTGRES_PASSWORD: password # The default password
-      POSTGRES_DB: vampire_project # The default database name
+      - ORACLE_SID=ORCL
+      - ORACLE_PWD=MyStr_ngPassw0rd
     ports:
-      - "5432:5432" # Map port 5432 on host to port 5432 on the container
+      - "1521:1521"
+      - "5500:5500"
     volumes:
-      - postgres-data:/var/lib/postgresql/data # Persistent storage for database data
+      - oracle-data:/opt/oracle/oradata
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    restart: unless-stopped
 
 volumes:
-  postgres-data:
+  oracle-data:

@@ -1,0 +1,25 @@
+{
+  "name": "smtp-server",
+  "version": "1.0.0",
+  "description": "Smtp server using only net lib and db connection",
+  "main": "src/main.ts",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
+    "test": "npm run test"
+  },
+  "author": "Jerlyson Feliciano Santos",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "prettier": "^3.3.3",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "net": "^1.0.2",
+    "sqlite3": "5.1.6",
+    "tls": "^0.0.1"
+  }
+}
