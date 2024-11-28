@@ -2,42 +2,47 @@ import { Socket } from "net";
 import { SMTPController } from "./SMTPController";
 import { createSecureContext, TLSSocket } from "tls";
 import { options } from "../../config/tls";
-
-const STATES = {
-    INIT: 'INIT',
-    HELO: 'HELO',
-    MAIL: 'MAIL',
-    RCPT: 'RCPT',
-    DATA: 'DATA',
-    END: 'END',
-};
-
+import { ServerStateUseCase, STATES } from "../../core/usecases/ServerStateUseCase";
+import { ServerStateService } from "../../infra/services/ServerStateService";
 
 export class SMTPSecureController {
 
     private static _instance: SMTPSecureController;
 
     private _smtpController: SMTPController;
+    private _serverStateUseCase: ServerStateUseCase;
 
     public _startTLS(socket: Socket) {
         try {
             console.log('Iniciando TLS...');
             socket.write('220 Ready to start TLS\r\n');
 
-            const secureSocket = new TLSSocket(socket, { secureContext: createSecureContext(options) });
-            // this._smtpController = new SMTPController(secureSocket);
+            const secureContext = createSecureContext(options);
+
+            const secureSocket = new TLSSocket(socket, { isServer: true, requestCert: false, secureContext });
+
+            this._smtpController = new SMTPController(secureSocket);
+            this._serverStateUseCase = ServerStateService.getInstance();
 
             secureSocket.on('data', (chunk: ArrayBuffer) => {
-                console.log('Conexão segura.', chunk.toString());
+                this._onConnectionSecure(chunk, secureSocket);
+
+                this._serverStateUseCase.setSecure(true);
             });
 
             secureSocket.on('end', () => {
                 console.log('Conexão encerrada.');
+                this._serverStateUseCase.setSecure(false);
+                this._serverStateUseCase.setCurrentState(STATES.INIT);
             })
 
             secureSocket.on('error', (err) => {
                 console.error(`Erro na conexão: ${err}`);
+
+                this._serverStateUseCase.setSecure(false);
+                this._serverStateUseCase.setCurrentState(STATES.INIT);
             })
+
 
             socket.removeAllListeners();
         } catch (error) {
@@ -47,12 +52,16 @@ export class SMTPSecureController {
     }
 
     private _onConnectionSecure(chunk: ArrayBuffer, socket: TLSSocket) {
-        const state = this._smtpController.state;
 
         const data = chunk.toString().trim();
+
         console.log(`C: ${data}`);
 
-        if (state.dataMode) {
+        const [command, ...args] = data.split(' ');
+
+        const commandUpper = command.toUpperCase();
+
+        if (this._serverStateUseCase.currentState === STATES.DATA) {
             if (data === '.') {
                 this._smtpController.exitDataMode();
             } else {
@@ -62,38 +71,49 @@ export class SMTPSecureController {
             return;
         }
 
-        if (!['MAIL FROM:', 'RCPT TO:', 'DATA', 'QUIT', 'VRFY'].some(command => data.toUpperCase().startsWith(command))) {
+        if (!['MAIL', 'RCPT', 'DATA', 'QUIT', 'VRFY'].some(command => commandUpper.startsWith(command))) {
             socket.write('500 Syntax error, command unrecognized\r\n');
             return;
         }
 
-        if (data.startsWith('MAIL FROM:')) {
-            this._smtpController.mailFrom(data);
+        if (this._serverStateUseCase.currentState === STATES.HELO) {
+            if (commandUpper.startsWith('MAIL') && (args[0] && args[0].toUpperCase().startsWith('FROM:'))) {
+                this._smtpController.mailFrom(args[0]);
+
+                return;
+            }
+
+
+            if (commandUpper.startsWith('VRFY')) {
+                this._smtpController.verify(data);
+
+                return;
+            }
+
+            if (commandUpper === 'QUIT') {
+                this._smtpController.quit();
+
+                return;
+            }
         }
 
-        if (data.startsWith('RCPT TO:')) {
-            this._smtpController.rcpTo(data);
+        if (this._serverStateUseCase.currentState === STATES.MAIL) {
+            if (commandUpper.startsWith('RCPT') && (args[0] && args[0].toUpperCase().startsWith('TO:'))) {
+                this._smtpController.rcpTo(args[0]);
+
+                return;
+            }
         }
 
-        if (data.startsWith('VRFY')) {
-            this._smtpController.verify(data);
+        if (this._serverStateUseCase.currentState === STATES.RCPT) {
+            if (commandUpper === 'DATA') {
+                this._smtpController.enterDataMode();
+
+                return;
+            }
         }
 
-        if (data === 'DATA') {
-            this._smtpController.enterDataMode();
-        }
-
-        if (data === 'QUIT') {
-            this._smtpController.quit();
-        }
-
-        socket.on('end', () => {
-            console.log('Conexão encerrada.');
-        })
-
-        socket.on('error', (err) => {
-            console.error(`Erro na conexão: ${err}`);
-        })
+        socket.write('503 Bad sequence of commands\r\n');
     }
 
     static getInstanceOf() {
