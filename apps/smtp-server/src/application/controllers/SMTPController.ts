@@ -1,10 +1,15 @@
 import { createConnection, Socket } from "net";
+import {
+    connect,
+    TLSSocket
+} from "tls";
 import { SMTPState } from "../../core/entities/SMTPState";
 import { MailUseCase } from "../../core/usecases/MailUseCase";
 import { MailService } from "../../infra/services/MailService";
 import { ServerStateUseCase, STATES } from "../../core/usecases/ServerStateUseCase";
 import { ServerStateService } from "../../infra/services/ServerStateService";
 import { rules } from "../../config/rules";
+import { options } from "../../config/tls";
 
 export class SMTPController {
     private _socket: Socket
@@ -112,7 +117,7 @@ export class SMTPController {
             const host = recipient.split("@")[1]
 
             if (rules.domains.some(domain => domain === host)) {
-                this.sendEmailInMailBox(mailFrom, recipients, data)
+                this.saveEmailInMailBox(mailFrom, recipients, data)
             } else {
                 await this.forwardEmail(mailFrom, recipient, data);
             }
@@ -120,7 +125,7 @@ export class SMTPController {
         }
     }
 
-    private sendEmailInMailBox(mailFrom: string, recipients: string[], data: string) {
+    private saveEmailInMailBox(mailFrom: string, recipients: string[], data: string) {
         console.log("Email salvo na mail box")
         console.log(this._state);
 
@@ -135,7 +140,7 @@ export class SMTPController {
         console.log("Encaminhando e-mail")
 
         return new Promise((resolve, reject) => {
-            const client = createConnection({ host: recipient.split("@")[1], port: 25 }, () => {
+            const client = createConnection(2526, 'localhost', () => {
                 console.log('Connected to target SMTP server');
             });
 
@@ -148,33 +153,33 @@ export class SMTPController {
                 responseBuffer += chunk;
 
                 if (responseBuffer.includes('\r\n')) {
-                    const lines = responseBuffer.split('\r\n');
+                    const line = responseBuffer.split('\r\n')[0];
                     responseBuffer = '';
 
-                    for (const line of lines) {
-                        console.log('SMTP Server:', line);
-                        if (step === 0 && line.startsWith('220')) {
-                            client.write(`EHLO localhost\r\n`);
-                            step++;
-                        } else if (step === 1 && line.startsWith('250')) {
-                            client.write(`MAIL FROM:<${mailFrom}>\r\n`);
-                            step++;
-                        } else if (step === 2 && line.startsWith('250')) {
-                            client.write(`RCPT TO:<${recipient}>\r\n`);
-                            step++;
-                        } else if (step === 3 && line.startsWith('250')) {
-                            client.write(`DATA\r\n`);
-                            step++;
-                        } else if (step === 4 && line.startsWith('354')) {
-                            client.write(data + '\r\n.\r\n');
-                            step++;
-                        } else if (step === 5 && line.startsWith('250')) {
-                            client.end();
-                            resolve();
-                        } else if (line.startsWith('550') || line.startsWith('500')) {
-                            client.end();
-                            reject(new Error(`SMTP Error: ${line}`));
-                        }
+                    console.log('SMTP Server:', line);
+
+                    if (step === 0 && line.startsWith('220')) {
+                        client.write(`EHLO ${rules.domains[0]}\r\n`);
+                        step++;
+                    } else if (step === 1 && line.startsWith('250')) {
+                        client.write(`MAIL FROM:<${mailFrom}>\r\n`);
+                        step++;
+                    } else if (step === 2 && line.startsWith('250')) {
+                        client.write(`RCPT TO:<${recipient}>\r\n`);
+                        step++;
+                    } else if (step === 3 && line.startsWith('250')) {
+                        client.write('DATA\r\n');
+                        step++;
+                    } else if (step === 4 && line.startsWith('354')) {
+                        client.write(data);
+                        client.write('\r\n.\r\n');
+                        step++
+                    } else if (step === 5 && line.startsWith('250')) {
+                        client.end();
+                        resolve();
+                    } else if (line.startsWith('550') || line.startsWith('500')) {
+                        client.end();
+                        reject(new Error(`SMTP Error: ${line}`));
                     }
                 }
             });

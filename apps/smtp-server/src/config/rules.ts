@@ -1,6 +1,6 @@
 
 export const rules = {
     domains: [
-        'jerlynmail.com'
+        process.argv[3] || 'jerlynmail.com'
     ]
 }

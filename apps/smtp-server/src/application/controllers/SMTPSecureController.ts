@@ -52,6 +52,7 @@ export class SMTPSecureController {
     }
 
     private _onConnectionSecure(chunk: ArrayBuffer, socket: TLSSocket) {
+        this._serverStateUseCase = ServerStateService.getInstance();
 
         const data = chunk.toString().trim();
 

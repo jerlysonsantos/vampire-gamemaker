@@ -1,3 +1,7 @@
+/**
+ * Me arrependo de ter feito isso usando POO no JS
+ * Se um dia eu descobrir uma forma melhor, eu arrumo, até lá, é isso aí
+ */
 import { createServer, Socket } from "net";
 import { SMTPController } from "./controllers/SMTPController";
 import { SMTPSecureController } from "./controllers/SMTPSecureController";
@@ -11,7 +15,7 @@ export class SMTPServer {
     private _smtpController: SMTPController;
     private _smtpSecureController: SMTPSecureController;
 
-    private _serverStateService: ServerStateUseCase;
+    private _serverStateUseCase: ServerStateUseCase;
 
     constructor(host: string, port: number) {
         this._host = host;
@@ -23,7 +27,7 @@ export class SMTPServer {
 
         this._smtpController = SMTPController.getInstanceOf(socket);
         this._smtpSecureController = SMTPSecureController.getInstanceOf();
-        this._serverStateService = ServerStateService.getInstance();
+        this._serverStateUseCase = ServerStateService.getInstance();
 
         socket.write('220 smtp.example.com SMTP Server Ready\r\n');
 
@@ -34,21 +38,56 @@ export class SMTPServer {
             const commandUpper = command.toUpperCase();
             console.log(`C: ${data}`);
 
-            if (!['EHLO', 'HELO', 'STARTTLS', 'QUIT'].some(command => commandUpper.startsWith(command))) {
+            if (this._serverStateUseCase.currentState === STATES.DATA) {
+                if (data === '.') {
+                    this._smtpController.exitDataMode();
+                } else {
+                    this._smtpController.registerData(data);
+                }
+
+                return;
+            }
+
+            if (!['EHLO', 'HELO', 'STARTTLS', 'QUIT', 'MAIL', 'RCPT', 'DATA'].some(command => commandUpper.startsWith(command))) {
                 socket.write('500 Syntax error, command unrecognized\r\n');
                 return;
             }
 
-            if (this._serverStateService.currentState === STATES.INIT) {
+            if (this._serverStateUseCase.currentState === STATES.INIT) {
                 if (commandUpper.startsWith('EHLO') || commandUpper.startsWith('HELO')) {
                     this._smtpController.helo(args[0]);
                     return;
                 }
             }
 
-            if (this._serverStateService.currentState === STATES.HELO) {
+            if (this._serverStateUseCase.currentState === STATES.HELO) {
                 if (commandUpper === 'STARTTLS') {
                     this._smtpSecureController._startTLS(socket);
+                    return;
+                }
+
+                if (commandUpper.startsWith('MAIL') && (args[0] && args[0].toUpperCase().startsWith('FROM:'))) {
+                    this._smtpController.mailFrom(args[0]);
+
+                    return;
+                }
+
+                return
+            }
+
+
+            if (this._serverStateUseCase.currentState === STATES.MAIL) {
+                if (commandUpper.startsWith('RCPT') && (args[0] && args[0].toUpperCase().startsWith('TO:'))) {
+                    this._smtpController.rcpTo(args[0]);
+
+                    return;
+                }
+            }
+
+            if (this._serverStateUseCase.currentState === STATES.RCPT) {
+                if (commandUpper.startsWith('DATA')) {
+                    this._smtpController.enterDataMode();
+
                     return;
                 }
             }
@@ -65,16 +104,16 @@ export class SMTPServer {
         socket.on('end', () => {
             console.log('Conexão encerrada.');
 
-            this._serverStateService.setSecure(false);
-            this._serverStateService.setCurrentState(STATES.INIT);
+            this._serverStateUseCase.setSecure(false);
+            this._serverStateUseCase.setCurrentState(STATES.INIT);
 
         })
 
         socket.on('error', (err) => {
             console.error(`Erro na conexão: ${err}`);
 
-            this._serverStateService.setSecure(false);
-            this._serverStateService.setCurrentState(STATES.INIT);
+            this._serverStateUseCase.setSecure(false);
+            this._serverStateUseCase.setCurrentState(STATES.INIT);
         })
     }
 
