@@ -11,11 +11,11 @@ export class Mail {
         this._data = data;
     }
 
-    get from() {
+    get mailFrom() {
         return this._from;
     }
 
-    get to() {
+    get mailTo() {
         return this._to;
     }
 

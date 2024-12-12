@@ -10,18 +10,15 @@ export class MailService implements MailUseCase {
         this.mailRepository = new MailRepositoryImpl();
     }
 
-    sendMail(from: string, to: string[], data: string): void {
-        const dataMatch = data.match(/(Subject:|SUBJECT:|subject:)(.*)/);
-        const subject = dataMatch ? dataMatch[1] : 'No subject';
+    async sendMail(from: string, recipient: string, data: string): Promise<void> {
+        const regex = /(Subject:|SUBJECT:|subject:)(.*)/
+        const dataMatch = data.match(regex);
 
-        to.forEach((recipient) => {
-            const mail = new Mail(from, recipient, subject, data);
-            this.mailRepository.save(mail);
-        })
-    }
+        const subject = dataMatch ? dataMatch[2].trim() : 'No subject';
+        const cleanData = data.replace(regex, '');
 
-    listMails(to: string): Mail {
-        throw new Error("Method not implemented.");
+        const mail = new Mail(from, recipient, subject, cleanData);
+        await this.mailRepository.save(mail);
     }
 
     async listMailsFrom(from: string): Promise<Mail> {

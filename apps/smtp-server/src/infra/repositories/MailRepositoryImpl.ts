@@ -1,23 +1,31 @@
 import { database } from "../../config/database";
 import { Mail } from "../../core/entities/Mail";
-import { MailRepository } from "src/core/repositories/MailRepository";
+import { MailRepository } from "../../core/repositories/MailRepository";
 
 export class MailRepositoryImpl implements MailRepository {
-    save(mail: Mail): void {
-        const insert = database.prepare('INSERT INTO mails (\'from\', \'to\', subject, data) VALUES (?, ?, ?, ?)')
+    save(mail: Mail): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const insert = database.prepare('INSERT INTO mails (mailFrom, mailTo, subject, data) VALUES (?, ?, ?, ?)')
 
-        insert.run(mail.from, mail.to, mail.subject, mail.data)
+            insert.run(mail.mailFrom, mail.mailTo, mail.subject, mail.data)
 
-        insert.finalize()
+            insert.finalize((err) => {
 
-        return;
+                if (err) {
+                    reject(err)
+                } else {
+                    resolve()
+                }
+            })
+
+        })
     }
 
     findByTo(to: string): Mail[] {
         const mails: Mail[] = []
 
-        database.each('SELECT * FROM mails WHERE \'to\' = ?', to, (err, row: Mail) => {
-            mails.push(new Mail(row.from, row.to, row.subject, row.data))
+        database.each('SELECT * FROM mails WHERE mailTo = ?', to, (err, row: Mail) => {
+            mails.push(new Mail(row.mailFrom, row.mailTo, row.subject, row.data))
         });
 
         return mails
@@ -27,7 +35,7 @@ export class MailRepositoryImpl implements MailRepository {
         return new Promise((resolve, reject) => {
             const mails: Mail[] = []
 
-            const stmt = database.prepare('SELECT * FROM mails WHERE \'from\' = ?;')
+            const stmt = database.prepare('SELECT * FROM mails WHERE mailFrom = ?;')
 
             stmt.run(from);
 
@@ -37,7 +45,7 @@ export class MailRepositoryImpl implements MailRepository {
                 }
 
                 for (const row of rows) {
-                    mails.push(new Mail(row.from, row.to, row.subject, row.data))
+                    mails.push(new Mail(row.mailFrom, row.mailTo, row.subject, row.data))
                 }
 
                 console.log(rows)

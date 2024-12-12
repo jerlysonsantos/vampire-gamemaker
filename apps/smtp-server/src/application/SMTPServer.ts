@@ -33,10 +33,14 @@ export class SMTPServer {
 
         socket.on('data', (chunk: ArrayBuffer) => {
             const data = chunk.toString().trim();
-            const [command, ...args] = data.split(' ');
+
+            const [command, ...argsList] = data.split(' ');
+
+            const args = argsList.join('')
 
             const commandUpper = command.toUpperCase();
             console.log(`C: ${data}`);
+            console.log(`S: ${this._serverStateUseCase.currentState}`);
 
             if (this._serverStateUseCase.currentState === STATES.DATA) {
                 if (data === '.') {
@@ -53,9 +57,16 @@ export class SMTPServer {
                 return;
             }
 
+            if (commandUpper === 'QUIT') {
+                this._smtpController.quit();
+
+                return
+            }
+
+
             if (this._serverStateUseCase.currentState === STATES.INIT) {
                 if (commandUpper.startsWith('EHLO') || commandUpper.startsWith('HELO')) {
-                    this._smtpController.helo(args[0]);
+                    this._smtpController.helo(args);
                     return;
                 }
             }
@@ -66,8 +77,8 @@ export class SMTPServer {
                     return;
                 }
 
-                if (commandUpper.startsWith('MAIL') && (args[0] && args[0].toUpperCase().startsWith('FROM:'))) {
-                    this._smtpController.mailFrom(args[0]);
+                if (commandUpper.startsWith('MAIL') && (args && args.toUpperCase().startsWith('FROM:'))) {
+                    this._smtpController.mailFrom(args);
 
                     return;
                 }
@@ -77,8 +88,8 @@ export class SMTPServer {
 
 
             if (this._serverStateUseCase.currentState === STATES.MAIL) {
-                if (commandUpper.startsWith('RCPT') && (args[0] && args[0].toUpperCase().startsWith('TO:'))) {
-                    this._smtpController.rcpTo(args[0]);
+                if (commandUpper.startsWith('RCPT') && (args && args.toUpperCase().startsWith('TO:'))) {
+                    this._smtpController.rcpTo(args);
 
                     return;
                 }
@@ -92,11 +103,6 @@ export class SMTPServer {
                 }
             }
 
-            if (commandUpper === 'QUIT') {
-                this._smtpController.quit();
-
-                return
-            }
 
             socket.write('503 Bad sequence of commands\r\n');
         })

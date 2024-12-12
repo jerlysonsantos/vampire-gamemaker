@@ -3,7 +3,6 @@ import { MailRepository } from "../repositories/MailRepository";
 
 export interface MailUseCase {
     mailRepository: MailRepository;
-    sendMail(from: string, to: string[], data: string): void;
-    listMails(to: string): Mail;
+    sendMail(from: string, recipient: string, data: string): Promise<void>;
     listMailsFrom(from: string): Promise<Mail>;
 }

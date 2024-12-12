@@ -56,9 +56,10 @@ export class SMTPSecureController {
 
         const data = chunk.toString().trim();
 
-        console.log(`C: ${data}`);
 
-        const [command, ...args] = data.split(' ');
+        const [command, ...argsList] = data.split(' ');
+
+        const args = argsList.join('')
 
         const commandUpper = command.toUpperCase();
 
@@ -77,9 +78,16 @@ export class SMTPSecureController {
             return;
         }
 
+
+        if (commandUpper === 'QUIT') {
+            this._smtpController.quit();
+
+            return;
+        }
+
         if (this._serverStateUseCase.currentState === STATES.HELO) {
-            if (commandUpper.startsWith('MAIL') && (args[0] && args[0].toUpperCase().startsWith('FROM:'))) {
-                this._smtpController.mailFrom(args[0]);
+            if (commandUpper.startsWith('MAIL') && (args && args.toUpperCase().startsWith('FROM:'))) {
+                this._smtpController.mailFrom(args);
 
                 return;
             }
@@ -91,16 +99,11 @@ export class SMTPSecureController {
                 return;
             }
 
-            if (commandUpper === 'QUIT') {
-                this._smtpController.quit();
-
-                return;
-            }
         }
 
         if (this._serverStateUseCase.currentState === STATES.MAIL) {
-            if (commandUpper.startsWith('RCPT') && (args[0] && args[0].toUpperCase().startsWith('TO:'))) {
-                this._smtpController.rcpTo(args[0]);
+            if (commandUpper.startsWith('RCPT') && (args && args.toUpperCase().startsWith('TO:'))) {
+                this._smtpController.rcpTo(args);
 
                 return;
             }

@@ -1,21 +1,20 @@
 import { createConnection, Socket } from "net";
-import {
-    connect,
-    TLSSocket
-} from "tls";
+
 import { SMTPState } from "../../core/entities/SMTPState";
 import { MailUseCase } from "../../core/usecases/MailUseCase";
 import { MailService } from "../../infra/services/MailService";
 import { ServerStateUseCase, STATES } from "../../core/usecases/ServerStateUseCase";
 import { ServerStateService } from "../../infra/services/ServerStateService";
 import { rules } from "../../config/rules";
-import { options } from "../../config/tls";
+import { UserUseCase } from "../../core/usecases/UserUseCase";
+import { UserService } from "../../infra/services/UserService";
 
 export class SMTPController {
     private _socket: Socket
     private _state: SMTPState
 
     private _mailUseCase: MailUseCase;
+    private _userUseCase: UserUseCase;
     private _serverStateUseCase: ServerStateUseCase;
 
     constructor(socket: Socket) {
@@ -23,6 +22,7 @@ export class SMTPController {
         this._state = new SMTPState()
 
         this._mailUseCase = new MailService()
+        this._userUseCase = new UserService()
         this._serverStateUseCase = ServerStateService.getInstance();
     }
 
@@ -43,6 +43,13 @@ export class SMTPController {
     }
 
     public mailFrom(email: string) {
+        const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
+
+        if (!emailRegex.test(email)) {
+            this._socket.write('501 Syntax error in parameters or arguments\r\n');
+            return;
+        }
+
         this._state.mailFrom = email.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi)[0];
         this._socket.write('250 OK\r\n');
 
@@ -50,6 +57,13 @@ export class SMTPController {
     }
 
     public rcpTo(rawEmails: string) {
+        const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
+
+        if (!emailRegex.test(rawEmails)) {
+            this._socket.write('501 Syntax error in parameters or arguments\r\n');
+            return;
+        }
+
         const emails = rawEmails.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi)
 
         this._state.recipients = emails;
@@ -91,11 +105,12 @@ export class SMTPController {
 
     public async verify(data: string) {
         try {
-            const userMail = data.split(' ')[1];
+            const userNameOrEmail = data.split(' ')[1];
 
-            const mail = await this._mailUseCase.listMailsFrom(userMail);
+            const users = await this._userUseCase.getUsersLike(userNameOrEmail);
 
-            this._socket.write(`250 ${mail.from}\r\n`);
+            this._socket.write(`250 ${users.map(user => user.email).join(', ')}\r\n`);
+
         } catch (error) {
             this._socket.write(`${error.message}\r\n`);
         }
@@ -117,7 +132,7 @@ export class SMTPController {
             const host = recipient.split("@")[1]
 
             if (rules.domains.some(domain => domain === host)) {
-                this.saveEmailInMailBox(mailFrom, recipients, data)
+                await this.saveEmailInMailBox(mailFrom, recipient, data)
             } else {
                 await this.forwardEmail(mailFrom, recipient, data);
             }
@@ -125,13 +140,13 @@ export class SMTPController {
         }
     }
 
-    private saveEmailInMailBox(mailFrom: string, recipients: string[], data: string) {
+    private async saveEmailInMailBox(mailFrom: string, recipient: string, data: string) {
         console.log("Email salvo na mail box")
         console.log(this._state);
 
-        this._mailUseCase.sendMail(
+        await this._mailUseCase.sendMail(
             mailFrom,
-            recipients,
+            recipient,
             data
         );
     }
@@ -139,8 +154,10 @@ export class SMTPController {
     private forwardEmail(mailFrom: string, recipient: string, data: string): Promise<void> {
         console.log("Encaminhando e-mail")
 
+        const domain = recipient.split('@')[1];
+
         return new Promise((resolve, reject) => {
-            const client = createConnection(2526, 'localhost', () => {
+            const client = createConnection(2526, domain, () => {
                 console.log('Connected to target SMTP server');
             });
 
@@ -171,7 +188,9 @@ export class SMTPController {
                         client.write('DATA\r\n');
                         step++;
                     } else if (step === 4 && line.startsWith('354')) {
+                        console.log(data)
                         client.write(data);
+
                         client.write('\r\n.\r\n');
                         step++
                     } else if (step === 5 && line.startsWith('250')) {
